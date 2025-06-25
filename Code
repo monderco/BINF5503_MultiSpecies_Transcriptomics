@@ -1,0 +1,48 @@
+## Loading libraries ##
+library(readr)
+library(readr)
+library(dplyr)
+library(purrr)
+
+## Unzipping files ##
+unzip("3_MultiSpeciesTranscriptomics.zip", exdir = "unzipped_3MST")
+
+## Loading in files ##
+tsv_files <- list.files("unzipped_3MST", pattern = "\\.tsv$", full.names = TRUE)
+
+all_data <- lapply(tsv_files, read_tsv)
+
+## between these 2 steps I think there is an mistake, please try running the code and let me know if it works-
+## if not it has to do with the directories ##
+
+## Read the file ##
+data <- read.table("DR106_dre_liver_42_months.multiple.count", header = TRUE, sep = "\t")
+
+## Data wrangling - Print the first few rows & summary ##
+head(data)
+summary(data)
+
+
+## -Combining all rows from zebrafish- ##
+zebrafish_files <- list.files("unzipped_data", pattern = "dre.*\\.count$", full.names = TRUE)
+
+## Read and merge ##
+zebrafish_counts <- zebrafish_files %>%
+  map(~ read_tsv(.x, col_names = c("gene", tools::file_path_sans_ext(basename(.x))))) %>%
+  reduce(full_join, by = "gene")
+
+## set gene as row names ##
+rownames(zebrafish_counts) <- zebrafish_counts$gene
+zebrafish_counts <- zebrafish_counts[ , -1]
+
+## Combining all rows from Killifish ##
+killifish_files <- list.files("unzipped_data", pattern = "nfu.*\\.count$", full.names = TRUE)
+
+## Read and merge ##
+killifish_counts <- killifish_files %>%
+  map(~ read_tsv(.x, col_names = c("gene", tools::file_path_sans_ext(basename(.x))))) %>%
+  reduce(full_join, by = "gene")
+
+## set gene as row names ##
+rownames(killifish_counts) <- killifish_counts$gene
+killifish_counts <- killifish_counts[ , -1]
