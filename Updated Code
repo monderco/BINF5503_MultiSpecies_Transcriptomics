@@ -1,0 +1,98 @@
+## Load libraries ##
+library(readr)
+library(dplyr)
+library(purrr)
+library(tibble)
+library(ggplot2)
+
+#------Initial data exploring & Organizing------#
+## List and read all .tsv files ##
+tsv_files <- list.files(pattern = "\\.count$", full.names = TRUE, recursive = TRUE)
+all_data <- lapply(tsv_files, read_tsv)
+
+## Summarize data ##
+head(data)
+summary(data)
+
+## --- Combine zebrafish files --- ##
+zebrafish_files <- list.files(pattern = "\\.multiple\\.count$", full.names = TRUE, recursive = TRUE)
+zebrafish_files <- zebrafish_files[grepl("dre", zebrafish_files)]
+
+print(zebrafish_files)
+
+zebrafish_counts <- zebrafish_files %>%
+  map(~ read_tsv(.x, col_names = c("gene", tools::file_path_sans_ext(basename(.x))))) %>%
+  reduce(full_join, by = "gene")
+
+zebrafish_counts <- zebrafish_counts %>% column_to_rownames("gene")
+
+## --- Combine killifish files --- ##
+killifish_files <- list.files(pattern = "\\.multiple\\.count$", full.names = TRUE, recursive = TRUE)
+killifish_files <- killifish_files[grepl("nfu", killifish_files)]
+
+print(killifish_files)
+
+killifish_counts <- killifish_files %>%
+  map(~ read_tsv(.x, col_names = c("gene", tools::file_path_sans_ext(basename(.x))))) %>%
+  reduce(full_join, by = "gene")
+
+killifish_counts <- killifish_counts %>% column_to_rownames("gene")
+
+#------Statistical Analysis for each species------#
+## Analysis for zebrafish - Expression of circadian genes all throughout ##
+
+# Circadian genes of interest #
+genes_of_interest <- c(
+  "ENSDARG00000006791",
+  "ENSDARG00000003631",
+  "ENSDARG00000011583",
+  "ENSDARG00000010519"
+)
+
+zebra_filtered <- zebrafish_counts %>%
+  rownames_to_column("gene") %>%
+  filter(gene %in% genes_of_interest)
+
+# Calculating total expression across all samples #
+zebra_filtered <- zebra_filtered %>%
+  mutate(Total = rowSums(select(., -gene)))
+
+# Histogram for the selected circadian genes #
+ggplot(zebra_filtered, aes(x = gene, y = Total)) +
+  geom_col(fill = "light blue", width = 0.5) +
+  labs(
+    title = "Total Expression of Circadian Zebrafish Genes",
+    x = "Gene ID",
+    y = "Total Read Count"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+## Analysis for killifish - Expression of circadian genes all throughout ##
+
+# Circadian genes of interest #
+genes_of_interest <- c(
+  "Nfu_g_1_008319",
+  "Nfu_g_1_017932",
+  "Nfu_g_1_008080",
+  "Nfu_g_1_021184"
+)
+
+killifish_filtered <- killifish_counts %>%
+  rownames_to_column("gene") %>%
+  filter(gene %in% genes_of_interest)
+
+# Calculating total expression across all samples #
+killifish_filtered <- killifish_filtered %>%
+  mutate(Total = rowSums(select(., -gene)))
+
+# Histogram for the selected circadian genes #
+ggplot(killifish_filtered, aes(x = gene, y = Total)) +
+  geom_col(fill = "pink", width = 0.5) +
+  labs(
+    title = "Total Expression of Circadian Killifish Genes",
+    x = "Gene ID",
+    y = "Total Read Count"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
